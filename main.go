@@ -23,7 +23,7 @@ type BarangDetail struct {
 
 func main() {
 	// Konfigurasi database dengan GORM
-	dsn := "root:@tcp(127.0.0.1:3306)/db_skripsi?charset=utf8mb4&parseTime=True&loc=Local"
+	dsn := "root:@tcp(127.0.0.1:3306)/db_skripsi_2?charset=utf8mb4&parseTime=True&loc=Local"
 	db, err := gorm.Open(mysql.Open(dsn), &gorm.Config{})
 	if err != nil {
 		log.Fatal("DB connection error")
@@ -202,15 +202,11 @@ func main() {
 		noBatch := r.URL.Query().Get("no_batch")
 		newHarga := r.URL.Query().Get("new_harga")
 
-		// Lakukan update harga berdasarkan nomor batch
-		result := db.Table("barang").
-			Joins("INNER JOIN ref_barang ON ref_barang.id_barang = barang.id_barang").
-			Where("ref_barang.no_batch = ?", noBatch).
-			Update("barang.harga", newHarga)
-
+		err := db.Exec("UPDATE barang b INNER JOIN ref_barang rb ON rb.id_barang = b.id_barang SET b.harga =? WHERE rb.no_batch =?", newHarga,noBatch)
+	
 		// Periksa kesalahan
-		if result.Error != nil {
-			http.Error(w, result.Error.Error(), http.StatusInternalServerError)
+		if err.Error != nil {
+			http.Error(w, err.Error.Error(), http.StatusInternalServerError)
 			return
 		}
 

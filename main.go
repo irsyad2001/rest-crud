@@ -137,7 +137,7 @@ func main() {
 	http.HandleFunc("/barang_expired", func(w http.ResponseWriter, r *http.Request) {
 		var result []BarangDetail
 		db.Table("ref_barang").
-			Select("barang.nama_barang, ref_barang.stok, ref_barang.no_batch, ref_barang.expired").
+			Select("barang.nama_barang, barang.foto_barang, barang.harga, ref_barang.no_batch, ref_barang.expired").
 			Joins("INNER JOIN barang ON ref_barang.id_barang = barang.id_barang").
 			Where("ref_barang.expired <= CURRENT_DATE").
 			Scan(&result)
@@ -158,7 +158,7 @@ func main() {
 	http.HandleFunc("/barang_not_expired", func(w http.ResponseWriter, r *http.Request) {
 		var result []BarangDetail
 		db.Table("ref_barang").
-			Select("barang.nama_barang, ref_barang.stok, ref_barang.no_batch, ref_barang.expired").
+			Select("barang.nama_barang,barang.foto_barang, barang.harga, ref_barang.no_batch, ref_barang.expired").
 			Joins("INNER JOIN barang ON ref_barang.id_barang = barang.id_barang").
 			Where("ref_barang.expired >= CURRENT_DATE").
 			Scan(&result)

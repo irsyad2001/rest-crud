@@ -10,9 +10,14 @@ import (
 	"gorm.io/gorm"
 )
 
+var db *gorm.DB
+
 // Definisikan struktur untuk menyimpan data hasil query
 type BarangDetail struct {
+	IdBarang     uint 
 	NamaBarang   string `json:"nama_barang"`
+	Stok   		 string `json:"stok"`
+	ExpDate   	 string `json:"expired"`
 	FotoBarang   string `json:"foto_barang"`
 	Harga        string `json:"harga"`
 	NamaKategori string `json:"nama_kategori,omitempty"`
@@ -21,14 +26,42 @@ type BarangDetail struct {
 	NoBatch      string `json:"no_batch,omitempty"`
 }
 
+type CreateBulkRequest struct {
+	Data []BarangDetail `json:"data"`
+}
+
+
+func createBulkData(data []BarangDetail) error {
+	tx := db.Begin()
+
+	for _, item := range data {
+		print(item.ExpDate)
+		// Sesuaikan dengan struktur dan kolom pada tabel ref_barang
+		query := "INSERT INTO `ref_barang` (`id_ref_barang`, `id_barang`, `stok`, `expired`, `no_batch`, `created_date`) VALUES (NULL, ?, ?, ?, ?, current_timestamp());"
+		if result := tx.Exec(query, item.IdBarang, item.Stok, item.ExpDate, item.NoBatch); result.Error != nil {
+			tx.Rollback()
+			return result.Error
+		}
+	}
+
+	if err := tx.Commit().Error; err != nil {
+		return err
+	}
+
+	return nil
+}
+
 func main() {
 	// Konfigurasi database dengan GORM
 	dsn := "root:@tcp(127.0.0.1:3306)/db_skripsi_2?charset=utf8mb4&parseTime=True&loc=Local"
-	db, err := gorm.Open(mysql.Open(dsn), &gorm.Config{})
+	var err error
+	db, err = gorm.Open(mysql.Open(dsn), &gorm.Config{})
 	if err != nil {
-		log.Fatal("DB connection error")
+		log.Fatal("DB connection error:", err)
 	}
-	// Jangan menutup koneksi, GORM akan menangani hal itu
+
+	// Auto Migrate, atau buat tabel sesuai model BarangDetail
+	db.AutoMigrate(&BarangDetail{})
 
 	// Definisikan handler untuk endpoint /barang
 	http.HandleFunc("/barang", func(w http.ResponseWriter, r *http.Request) {
@@ -214,6 +247,32 @@ func main() {
 		w.WriteHeader(http.StatusOK)
 		w.Write([]byte("Harga berhasil diupdate"))
 	})
+
+	http.HandleFunc("/create_bulk", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			http.Error(w, "Metode HTTP tidak didukung", http.StatusMethodNotAllowed)
+			return
+		}
+	
+		var requestData CreateBulkRequest
+		if err := json.NewDecoder(r.Body).Decode(&requestData); err != nil {
+			http.Error(w, "Error decoding request body", http.StatusBadRequest)
+			return
+		}
+	
+		// Panggil fungsi untuk menyimpan data Create Bulk ke dalam database
+		if err := createBulkData(requestData.Data); err != nil {
+			http.Error(w, "Error creating bulk data", http.StatusInternalServerError)
+			return
+		}
+	
+		// Kirim respons sukses
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte("Create bulk data successful"))
+	})
+
+	
+	
 
 	// Mulai server HTTP
 	port := 8080
